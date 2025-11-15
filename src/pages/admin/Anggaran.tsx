@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AdminLayout from "@/components/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,30 +20,30 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Wallet, TrendingUp, Eye, Search, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
 interface Anggaran {
-  id: string;
-  tanggal: string;
+  id: number;
+  nama_anggaran: string;
   jumlah: number;
-  tujuan: string;
+  created_at: string;
+  updated_at: string;
 }
 
-const anggaranData: Anggaran[] = [
-  { id: "001", tanggal: "2025-01-05", jumlah: 15000000, tujuan: "Gaji Pegawai" },
-  { id: "002", tanggal: "2025-01-08", jumlah: 8500000, tujuan: "Operasional" },
-  { id: "003", tanggal: "2025-01-10", jumlah: 12000000, tujuan: "Perawatan Kendaraan" },
-  { id: "004", tanggal: "2025-01-12", jumlah: 10000000, tujuan: "Pembelian Alat" },
-];
+interface AnggaranSummary {
+  tpa_id: number;
+  nama_tpa: string;
+  summary: {
+    total_anggaran: number;
+    jumlah_item: number;
+    rata_rata_anggaran: number;
+  };
+  recent_anggaran: Anggaran[];
+}
 
-const chartData = [
-  { name: "Gaji", value: 15000000, fill: "#22c55e" },
-  { name: "Operasional", value: 8500000, fill: "#3b82f6" },
-  { name: "Perawatan", value: 12000000, fill: "#f59e0b" },
-  { name: "Pembelian", value: 10000000, fill: "#ef4444" },
-];
+const API_BASE_URL = "http://localhost:8000";
 
 const formatRupiah = (amount: number) => {
   return new Intl.NumberFormat("id-ID", {
@@ -54,180 +54,395 @@ const formatRupiah = (amount: number) => {
 };
 
 const Anggaran = () => {
-  const [data, setData] = useState<Anggaran[]>(anggaranData);
+  const [data, setData] = useState<Anggaran[]>([]);
+  const [summary, setSummary] = useState<AnggaranSummary | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Anggaran | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [tpaId] = useState(1); // Ganti dengan TPA ID yang sesuai
   const [formData, setFormData] = useState({
-    tanggal: "",
+    nama_anggaran: "",
     jumlah: "",
-    tujuan: "",
   });
 
-  const totalAnggaran = data.reduce((sum, item) => sum + item.jumlah, 0);
+  // Fetch data anggaran
+  const fetchAnggaran = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE_URL}/tpa/${tpaId}/anggaran`);
+      if (!response.ok) throw new Error("Gagal mengambil data anggaran");
+      const result = await response.json();
+      setData(result.anggaran_list);
+    } catch (error) {
+      console.error("Error fetching anggaran:", error);
+      toast.error("Gagal mengambil data anggaran");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch summary anggaran
+  const fetchSummary = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/tpa/${tpaId}/anggaran/summary`);
+      if (!response.ok) throw new Error("Gagal mengambil summary anggaran");
+      const result = await response.json();
+      setSummary(result);
+    } catch (error) {
+      console.error("Error fetching summary:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchAnggaran();
+    fetchSummary();
+  }, [tpaId]);
+
+  const filteredData = data.filter(item =>
+    item.nama_anggaran.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.created_at.includes(searchTerm)
+  );
 
   const handleAdd = () => {
     setEditingItem(null);
-    setFormData({ tanggal: "", jumlah: "", tujuan: "" });
+    setFormData({ nama_anggaran: "", jumlah: "" });
     setIsDialogOpen(true);
   };
 
   const handleEdit = (item: Anggaran) => {
     setEditingItem(item);
     setFormData({
-      tanggal: item.tanggal,
+      nama_anggaran: item.nama_anggaran,
       jumlah: item.jumlah.toString(),
-      tujuan: item.tujuan,
     });
     setIsDialogOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    setData(data.filter(item => item.id !== id));
-    toast.success("Data berhasil dihapus");
+  const handleDelete = async (id: number) => {
+    if (!confirm("Apakah Anda yakin ingin menghapus item anggaran ini?")) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/tpa/${tpaId}/anggaran/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) throw new Error("Gagal menghapus data");
+
+      setData(data.filter(item => item.id !== id));
+      fetchSummary(); // Refresh summary
+      toast.success("Data berhasil dihapus");
+    } catch (error) {
+      console.error("Error deleting anggaran:", error);
+      toast.error("Gagal menghapus data");
+    }
   };
 
-  const handleSubmit = () => {
-    if (!formData.tanggal || !formData.jumlah || !formData.tujuan) {
+  const handleSubmit = async () => {
+    if (!formData.nama_anggaran || !formData.jumlah) {
       toast.error("Semua field harus diisi");
       return;
     }
 
-    if (editingItem) {
-      setData(data.map(item => 
-        item.id === editingItem.id 
-          ? { ...item, ...formData, jumlah: Number(formData.jumlah) }
-          : item
-      ));
-      toast.success("Data berhasil diupdate");
-    } else {
-      const newItem: Anggaran = {
-        id: String(data.length + 1).padStart(3, "0"),
-        tanggal: formData.tanggal,
-        jumlah: Number(formData.jumlah),
-        tujuan: formData.tujuan,
-      };
-      setData([...data, newItem]);
-      toast.success("Data berhasil ditambahkan");
+    const jumlah = Number(formData.jumlah);
+    if (jumlah <= 0) {
+      toast.error("Jumlah harus lebih dari 0");
+      return;
     }
-    setIsDialogOpen(false);
+
+    setSubmitting(true);
+
+    try {
+      const payload = {
+        nama_anggaran: formData.nama_anggaran,
+        jumlah: jumlah,
+      };
+
+      let response: Response;
+
+      if (editingItem) {
+        // Update existing item
+        response = await fetch(`${API_BASE_URL}/tpa/${tpaId}/anggaran/${editingItem.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        // Create new item
+        response = await fetch(`${API_BASE_URL}/tpa/${tpaId}/anggaran`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+      }
+
+      if (!response.ok) throw new Error(editingItem ? "Gagal mengupdate data" : "Gagal menambah data");
+
+      const result = await response.json();
+      
+      if (editingItem) {
+        setData(data.map(item => 
+          item.id === editingItem.id ? result.anggaran : item
+        ));
+        toast.success("Data berhasil diupdate");
+      } else {
+        setData([...data, result.anggaran]);
+        toast.success("Data berhasil ditambahkan");
+      }
+
+      fetchSummary(); // Refresh summary
+      setIsDialogOpen(false);
+    } catch (error) {
+      console.error("Error submitting anggaran:", error);
+      toast.error(editingItem ? "Gagal mengupdate data" : "Gagal menambah data");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const chartData = [
-    { name: "Gaji", value: data.filter(d => d.tujuan.includes("Gaji")).reduce((sum, d) => sum + d.jumlah, 0), fill: "#22c55e" },
-    { name: "Operasional", value: data.filter(d => d.tujuan.includes("Operasional")).reduce((sum, d) => sum + d.jumlah, 0), fill: "#3b82f6" },
-    { name: "Perawatan", value: data.filter(d => d.tujuan.includes("Perawatan")).reduce((sum, d) => sum + d.jumlah, 0), fill: "#f59e0b" },
-    { name: "Pembelian", value: data.filter(d => d.tujuan.includes("Pembelian")).reduce((sum, d) => sum + d.jumlah, 0), fill: "#ef4444" },
-  ].filter(item => item.value > 0);
+  // Prepare chart data
+  const chartData = data.reduce((acc: any[], item) => {
+    const existing = acc.find(chartItem => chartItem.name === item.nama_anggaran);
+    if (existing) {
+      existing.value += item.jumlah;
+    } else {
+      acc.push({
+        name: item.nama_anggaran,
+        value: item.jumlah,
+        fill: `#${Math.floor(Math.random()*16777215).toString(16)}` // Random color
+      });
+    }
+    return acc;
+  }, []);
+
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
+
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="ml-2">Memuat data...</span>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
       <div className="space-y-6">
-        {/* Summary Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Total Anggaran Bulan Ini</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-primary">{formatRupiah(totalAnggaran)}</p>
-          </CardContent>
-        </Card>
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Total Anggaran
+              </CardTitle>
+              <Wallet className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatRupiah(summary?.summary.total_anggaran || 0)}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {summary?.nama_tpa || "TPA"}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Total Entri
+              </CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {summary?.summary.jumlah_item || 0} Item
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Data tercatat</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Rata-rata
+              </CardTitle>
+              <Eye className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatRupiah(summary?.summary.rata_rata_anggaran || 0)}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Per item</p>
+            </CardContent>
+          </Card>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Table */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Rincian Anggaran</CardTitle>
-              <Button className="gap-2" onClick={handleAdd}>
-                <Plus className="h-4 w-4" />
-                Tambah
-              </Button>
+            <CardHeader>
+              <div className="flex flex-col space-y-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle>Rincian Anggaran</CardTitle>
+                  <Button className="gap-2" onClick={handleAdd}>
+                    <Plus className="h-4 w-4" />
+                    Tambah
+                  </Button>
+                </div>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Cari nama anggaran..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Tanggal</TableHead>
-                    <TableHead>Tujuan</TableHead>
-                    <TableHead className="text-right">Jumlah</TableHead>
-                    <TableHead className="text-right">Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>{item.tanggal}</TableCell>
-                      <TableCell>{item.tujuan}</TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatRupiah(item.jumlah)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(item)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(item.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nama Anggaran</TableHead>
+                      <TableHead className="text-right">Jumlah</TableHead>
+                      <TableHead>Dibuat</TableHead>
+                      <TableHead className="text-right">Aksi</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredData.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                          {data.length === 0 ? "Belum ada data anggaran" : "Tidak ada data yang ditemukan"}
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredData.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-medium">{item.nama_anggaran}</TableCell>
+                          <TableCell className="text-right font-bold text-primary">
+                            {formatRupiah(item.jumlah)}
+                          </TableCell>
+                          <TableCell>
+                            {new Date(item.created_at).toLocaleDateString("id-ID", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEdit(item)}
+                                className="hover:bg-primary/10"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDelete(item.id)}
+                                className="hover:bg-destructive/10"
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
 
           {/* Chart */}
           <Card>
             <CardHeader>
-              <CardTitle>Proporsi Anggaran</CardTitle>
+              <CardTitle>Visualisasi Distribusi Anggaran</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={chartData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={80}
-                    dataKey="value"
-                  >
-                    {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
+              {chartData.length === 0 ? (
+                <div className="flex items-center justify-center h-64 text-muted-foreground">
+                  Tidak ada data untuk ditampilkan
+                </div>
+              ) : (
+                <>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={chartData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        outerRadius={90}
+                        dataKey="value"
+                      >
+                        {chartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(value: number) => formatRupiah(value)}
+                      />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="mt-4 space-y-2">
+                    {chartData.map((item, index) => (
+                      <div key={index} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                          />
+                          <span className="text-muted-foreground">{item.name}</span>
+                        </div>
+                        <span className="font-semibold">{formatRupiah(item.value)}</span>
+                      </div>
                     ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value: number) => formatRupiah(value)}
-                  />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
 
         {/* Public Link */}
-        <Card className="bg-blue-50 border-blue-200">
+        <Card className="border-primary/20 bg-primary/5">
           <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Halaman Publik Anggaran</p>
-                <p className="text-sm text-muted-foreground">
-                  Bagikan data anggaran kepada publik
-                </p>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <Eye className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-semibold">Transparansi Anggaran Publik</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Lihat dan bagikan informasi anggaran kepada masyarakat
+                  </p>
+                </div>
               </div>
               <Link to="/anggaran-publik">
-                <Button variant="outline">Lihat Halaman Publik</Button>
+                <Button variant="outline" className="gap-2">
+                  <Eye className="h-4 w-4" />
+                  Buka Halaman Publik
+                </Button>
               </Link>
             </div>
           </CardContent>
@@ -242,21 +457,12 @@ const Anggaran = () => {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="tanggal">Tanggal</Label>
+              <Label htmlFor="nama_anggaran">Nama Anggaran</Label>
               <Input
-                id="tanggal"
-                type="date"
-                value={formData.tanggal}
-                onChange={(e) => setFormData({ ...formData, tanggal: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="tujuan">Tujuan</Label>
-              <Input
-                id="tujuan"
-                placeholder="Contoh: Gaji Pegawai"
-                value={formData.tujuan}
-                onChange={(e) => setFormData({ ...formData, tujuan: e.target.value })}
+                id="nama_anggaran"
+                placeholder="Contoh: Gaji Pegawai, Operasional, dll."
+                value={formData.nama_anggaran}
+                onChange={(e) => setFormData({ ...formData, nama_anggaran: e.target.value })}
               />
             </div>
             <div>
@@ -271,10 +477,11 @@ const Anggaran = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={submitting}>
               Batal
             </Button>
-            <Button onClick={handleSubmit}>
+            <Button onClick={handleSubmit} disabled={submitting}>
+              {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               {editingItem ? "Update" : "Simpan"}
             </Button>
           </DialogFooter>
