@@ -81,7 +81,7 @@ const RuteSampah = () => {
       }
 
       // Step 1: Get TPA list for user
-      const tpaResponse = await fetch(`http://localhost:8000/tpa/user/${userId}/tpa`, {
+      const tpaResponse = await fetch(`http://${process.env.NEXT_PUBLIC_API_URL}/tpa/user/${userId}/tpa`, {
         headers: {
           'accept': 'application/json',
         }
@@ -103,7 +103,7 @@ const RuteSampah = () => {
       const tpaId = tpaData.tpa_list[0].id_tpa;
 
       // Step 2: Get users for this TPA
-      const usersResponse = await fetch(`http://localhost:8000/tpa/${tpaId}/users`, {
+      const usersResponse = await fetch(`http://${process.env.NEXT_PUBLIC_API_URL}/tpa/${tpaId}/users`, {
         headers: {
           'accept': 'application/json',
         }
@@ -119,7 +119,7 @@ const RuteSampah = () => {
       const routePoints: RoutePoint[] = [];
       
       for (const user of usersData.user_list) {
-        const userDetailResponse = await fetch(`http://localhost:8000/users/get-user-detail/${user.id_user}`, {
+        const userDetailResponse = await fetch(`http://${process.env.NEXT_PUBLIC_API_URL}/users/get-user-detail/${user.id_user}`, {
           headers: {
             'accept': 'application/json',
           }

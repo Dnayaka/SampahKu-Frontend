@@ -225,7 +225,7 @@ const Pelanggan = () => {
 
       console.log("🔄 Fetching data pelanggan untuk TPA:", tpaId);
 
-      const response = await fetch(`http://localhost:8000/tpa/tagihan/${tpaId}/all-users`, {
+      const response = await fetch(`http://${process.env.NEXT_PUBLIC_API_URL}/tpa/tagihan/${tpaId}/all-users`, {
         headers: { 
           accept: 'application/json',
           Authorization: `Bearer ${token}`
@@ -314,7 +314,7 @@ const Pelanggan = () => {
 
       console.log("📤 Membuat tagihan:", tagihanData);
 
-      const response = await fetch(`http://localhost:8000/financial/tagihan`, {
+      const response = await fetch(`http://${process.env.NEXT_PUBLIC_API_URL}/financial/tagihan`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -357,7 +357,7 @@ const Pelanggan = () => {
       console.log("💳 Memproses pembayaran tagihan:", tagihanId);
 
       const response = await fetch(
-        `http://localhost:8000/financial/tagihan/bayar`,
+        `http://${process.env.NEXT_PUBLIC_API_URL}/financial/tagihan/bayar`,
         {
           method: 'POST',
           headers: {

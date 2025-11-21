@@ -40,7 +40,7 @@ const Daftar = () => {
       `Mohon konfirmasi jadwal penjemputan. Terima kasih!`;
 
     // Nomor WhatsApp (ubah ke format internasional tanpa 0 di depan)
-    const waNumber = "6285119470737";
+    const waNumber = process.env.NEXT_PUBLIC_WA_NUMBER
 
     // Buka WhatsApp
     const waUrl = `https://wa.me/${waNumber}?text=${message}`;
