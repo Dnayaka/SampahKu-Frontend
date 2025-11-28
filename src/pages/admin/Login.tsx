@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Recycle } from "lucide-react";
 import { toast } from "sonner";
+const apiUrl = import.meta.env.VITE_API_URL;
 
 const Login = () => {
   const [nama, setNama] = useState("");
@@ -35,18 +36,16 @@ const Login = () => {
     }
 
     try {
-      const response = await fetch(`http://${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
+      const apiUrl = import.meta.env.VITE_API_URL;
+      const response = await fetch(`http://${apiUrl}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
-        body: JSON.stringify({
-          nama,
-          no_telepon: noTelepon,
-          password,
-        }),
+        body: JSON.stringify({ nama, no_telepon: noTelepon, password }),
       });
+
 
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));

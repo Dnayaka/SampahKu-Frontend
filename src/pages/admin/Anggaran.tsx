@@ -32,7 +32,14 @@ interface Anggaran {
   updated_at: string;
 }
 
-interface AnggaranSummary {
+interface AnggaranResponse {
+  tpa_id: number;
+  nama_tpa: string;
+  total_items: number;
+  anggaran_list: Anggaran[];
+}
+
+interface SummaryResponse {
   tpa_id: number;
   nama_tpa: string;
   summary: {
@@ -43,7 +50,7 @@ interface AnggaranSummary {
   recent_anggaran: Anggaran[];
 }
 
-const API_BASE_URL = `http://${process.env.NEXT_PUBLIC_API_URL}`;
+const API_BASE_URL = `http://${import.meta.env.VITE_API_URL}`;
 
 const formatRupiah = (amount: number) => {
   return new Intl.NumberFormat("id-ID", {
@@ -55,7 +62,7 @@ const formatRupiah = (amount: number) => {
 
 const Anggaran = () => {
   const [data, setData] = useState<Anggaran[]>([]);
-  const [summary, setSummary] = useState<AnggaranSummary | null>(null);
+  const [summary, setSummary] = useState<SummaryResponse | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Anggaran | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -73,7 +80,7 @@ const Anggaran = () => {
       setLoading(true);
       const response = await fetch(`${API_BASE_URL}/tpa/${tpaId}/anggaran`);
       if (!response.ok) throw new Error("Gagal mengambil data anggaran");
-      const result = await response.json();
+      const result: AnggaranResponse = await response.json();
       setData(result.anggaran_list);
     } catch (error) {
       console.error("Error fetching anggaran:", error);
@@ -88,7 +95,7 @@ const Anggaran = () => {
     try {
       const response = await fetch(`${API_BASE_URL}/tpa/${tpaId}/anggaran/summary`);
       if (!response.ok) throw new Error("Gagal mengambil summary anggaran");
-      const result = await response.json();
+      const result: SummaryResponse = await response.json();
       setSummary(result);
     } catch (error) {
       console.error("Error fetching summary:", error);
@@ -126,13 +133,22 @@ const Anggaran = () => {
     try {
       const response = await fetch(`${API_BASE_URL}/tpa/${tpaId}/anggaran/${id}`, {
         method: "DELETE",
+        headers: {
+          'accept': 'application/json',
+        },
       });
 
       if (!response.ok) throw new Error("Gagal menghapus data");
 
-      setData(data.filter(item => item.id !== id));
-      fetchSummary(); // Refresh summary
-      toast.success("Data berhasil dihapus");
+      const result = await response.json();
+      
+      if (result.message === "Anggaran berhasil dihapus") {
+        setData(data.filter(item => item.id !== id));
+        fetchSummary(); // Refresh summary
+        toast.success("Data berhasil dihapus");
+      } else {
+        throw new Error("Gagal menghapus data");
+      }
     } catch (error) {
       console.error("Error deleting anggaran:", error);
       toast.error("Gagal menghapus data");
@@ -167,6 +183,7 @@ const Anggaran = () => {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
+            'accept': 'application/json',
           },
           body: JSON.stringify(payload),
         });
@@ -176,6 +193,7 @@ const Anggaran = () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            'accept': 'application/json',
           },
           body: JSON.stringify(payload),
         });

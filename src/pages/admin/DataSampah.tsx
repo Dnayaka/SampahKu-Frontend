@@ -44,6 +44,7 @@ import {
   RefreshCw
 } from "lucide-react";
 import { toast } from "sonner";
+const apiUrl = import.meta.env.VITE_API_URL;
 
 interface DataSampah {
   id_sampahtpa: number;
@@ -136,7 +137,7 @@ const DataSampah = () => {
   // Fetch kategori sampah
   const fetchKategoriSampah = async () => {
     try {
-      const response = await fetch(`http://${process.env.NEXT_PUBLIC_API_URL}/sampah/kategori-sampah`, {
+      const response = await fetch(`http://${import.meta.env.VITE_API_URL}/sampah/kategori-sampah`, {
         method: 'GET',
         headers: {
           'accept': 'application/json',
@@ -163,7 +164,7 @@ const DataSampah = () => {
       if (showLoading) setLoading(true);
       
       // Gunakan endpoint analytics/all-sampah dengan filter TPA
-      const response = await fetch(`http://${process.env.NEXT_PUBLIC_API_URL}/analytics/all-sampah?id_tpa=${currentTpa.id_tpa}`, {
+      const response = await fetch(`http://${import.meta.env.VITE_API_URL}/analytics/all-sampah?id_tpa=${currentTpa.id_tpa}`, {
         method: 'GET',
         headers: {
           'accept': 'application/json',
@@ -201,7 +202,7 @@ const DataSampah = () => {
       }
 
       // Fetch TPA data
-      const tpaResponse = await fetch(`http://${process.env.NEXT_PUBLIC_API_URL}/tpa/user/${userId}/tpa`, {
+      const tpaResponse = await fetch(`http://${import.meta.env.VITE_API_URL}/tpa/user/${userId}/tpa`, {
         method: 'GET',
         headers: {
           'accept': 'application/json',
@@ -272,7 +273,7 @@ const DataSampah = () => {
         tanggal: formData.tanggal
       };
 
-      const response = await fetch(`http://${process.env.NEXT_PUBLIC_API_URL}/sampah/tpa`, {
+      const response = await fetch(`http://${import.meta.env.VITE_API_URL}/sampah/tpa`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -320,7 +321,7 @@ const DataSampah = () => {
     try {
       setDeleting(true);
       
-      const response = await fetch(`http://${process.env.NEXT_PUBLIC_API_URL}/sampah/tpa/${selectedItem.id_sampahtpa}`, {
+      const response = await fetch(`http://${import.meta.env.VITE_API_URL}/sampah/tpa/${selectedItem.id_sampahtpa}`, {
         method: 'DELETE',
         headers: {
           'accept': 'application/json',
@@ -382,7 +383,7 @@ const DataSampah = () => {
         deletePayload.delete_all = true;
       }
 
-      const response = await fetch(`http://${process.env.NEXT_PUBLIC_API_URL}/sampah/tpa`, {
+      const response = await fetch(`http://${import.meta.env.VITE_API_URL}/sampah/tpa`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',

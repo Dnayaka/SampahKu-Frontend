@@ -20,6 +20,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import { format } from "date-fns";
+const apiUrl = import.meta.env.VITE_API_URL;
 
 // 🔹 Ambil cookie manual tanpa library
 const getCookie = (name: string): string | null => {
@@ -348,7 +349,7 @@ const Dashboard = () => {
 
       // 🔹 Fetch total sampah
       const sampahRes = await fetch(
-        `http://${process.env.NEXT_PUBLIC_API_URL}sampah/tpa/stats?id_tpa=${idTpa}`,
+        `http://${import.meta.env.VITE_API_URL}/sampah/tpa/stats?id_tpa=${idTpa}`,
         { headers }
       );
       
@@ -371,7 +372,7 @@ const Dashboard = () => {
       // 🔹 Fetch data user dari endpoint Tpa Id Users
       try {
         const userRes = await fetch(
-          `http://${process.env.NEXT_PUBLIC_API_URL}/tpa/${idTpa}/users`,
+          `http://${import.meta.env.VITE_API_URL}/tpa/${idTpa}/users`,
           { headers }
         );
 
@@ -387,7 +388,7 @@ const Dashboard = () => {
             (userData.user_list || []).map(async (u: any) => {
               try {
                 const detailRes = await fetch(
-                  `http://${process.env.NEXT_PUBLIC_API_URL}/users/get-user-detail/${u.id_user}`,
+                  `http://${import.meta.env.VITE_API_URL}/users/get-user-detail/${u.id_user}`,
                   { headers }
                 );
                 const detail = detailRes.ok ? await detailRes.json() : null;
@@ -417,7 +418,7 @@ const Dashboard = () => {
 
       // 🔹 Fetch data alamat aktif user per TPA
       try {
-        const res = await fetch(`http://${process.env.NEXT_PUBLIC_API_URL}/tpa/alamat-aktif-user/${idTpa}`, { headers });
+        const res = await fetch(`http://${import.meta.env.VITE_API_URL}/tpa/alamat-aktif-user/${idTpa}`, { headers });
         if (res.ok) {
           const data = await res.json();
           console.log("📍 Data alamat aktif user:", data);
@@ -432,7 +433,7 @@ const Dashboard = () => {
 
       // 🔹 Fetch system logs 
       try {
-        const logsTpaRes = await fetch(`http://${process.env.NEXT_PUBLIC_API_URL}/system-logs/?skip=0&limit=100&tpa_id=${idTpa}`, {
+        const logsTpaRes = await fetch(`http://${import.meta.env.VITE_API_URL}/system-logs/?skip=0&limit=100&tpa_id=${idTpa}`, {
           headers,
         });
         

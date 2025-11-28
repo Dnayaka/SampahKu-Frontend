@@ -19,6 +19,7 @@ import {
   Line,
 } from "recharts";
 import { TrendingUp, Recycle, Package2, Calendar, AlertCircle, Loader2, RefreshCw } from "lucide-react";
+const apiUrl = import.meta.env.VITE_API_URL;
 
 interface TPA {
   id_tpa: number;
@@ -122,7 +123,7 @@ const Infografik = () => {
   const fetchMonthlyData = async (tpaId: number, yearMonth: string): Promise<SampahSummaryData | null> => {
     try {
       const response = await fetch(
-        `http://${process.env.NEXT_PUBLIC_API_URL}/analytics/sampah-summary?id_tpa=${tpaId}&bulan=${yearMonth}`,
+        `http://${import.meta.env.VITE_API_URL}/analytics/sampah-summary?id_tpa=${tpaId}&bulan=${yearMonth}`,
         {
           method: 'GET',
           headers: {
@@ -230,7 +231,7 @@ const Infografik = () => {
       }
 
       // Fetch TPA data
-      const tpaResponse = await fetch(`http://${process.env.NEXT_PUBLIC_API_URL}/tpa/user/${userId}/tpa`, {
+      const tpaResponse = await fetch(`http://${import.meta.env.VITE_API_URL}/tpa/user/${userId}/tpa`, {
         method: 'GET',
         headers: {
           'accept': 'application/json',

@@ -50,6 +50,7 @@ import {
   Calendar
 } from "lucide-react";
 import { toast } from "sonner";
+const apiUrl = import.meta.env.VITE_API_URL;
 
 // Tipe data sesuai response API
 interface AlamatAktif {
@@ -225,7 +226,7 @@ const Pelanggan = () => {
 
       console.log("🔄 Fetching data pelanggan untuk TPA:", tpaId);
 
-      const response = await fetch(`http://${process.env.NEXT_PUBLIC_API_URL}/tpa/tagihan/${tpaId}/all-users`, {
+      const response = await fetch(`http://${import.meta.env.VITE_API_URL}/tpa/tagihan/${tpaId}/all-users`, {
         headers: { 
           accept: 'application/json',
           Authorization: `Bearer ${token}`
@@ -314,7 +315,7 @@ const Pelanggan = () => {
 
       console.log("📤 Membuat tagihan:", tagihanData);
 
-      const response = await fetch(`http://${process.env.NEXT_PUBLIC_API_URL}/financial/tagihan`, {
+      const response = await fetch(`http://${import.meta.env.VITE_API_URL}/financial/tagihan`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -357,7 +358,7 @@ const Pelanggan = () => {
       console.log("💳 Memproses pembayaran tagihan:", tagihanId);
 
       const response = await fetch(
-        `http://${process.env.NEXT_PUBLIC_API_URL}/financial/tagihan/bayar`,
+        `http://${import.meta.env.VITE_API_URL}/financial/tagihan/bayar`,
         {
           method: 'POST',
           headers: {

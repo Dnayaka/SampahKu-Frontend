@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,22 +10,30 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
-import { Recycle, ArrowLeft } from "lucide-react";
+import { Recycle, ArrowLeft, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 
-const anggaranData = [
-  { id: "001", tanggal: "2025-01-05", jumlah: 15000000, tujuan: "Gaji Pegawai" },
-  { id: "002", tanggal: "2025-01-08", jumlah: 8500000, tujuan: "Operasional" },
-  { id: "003", tanggal: "2025-01-10", jumlah: 12000000, tujuan: "Perawatan Kendaraan" },
-  { id: "004", tanggal: "2025-01-12", jumlah: 10000000, tujuan: "Pembelian Alat" },
-];
+interface Anggaran {
+  id: number;
+  nama_anggaran: string;
+  jumlah: number;
+  created_at: string;
+  updated_at: string;
+}
 
-const chartData = [
-  { name: "Gaji", value: 15000000, fill: "#22c55e" },
-  { name: "Operasional", value: 8500000, fill: "#3b82f6" },
-  { name: "Perawatan", value: 12000000, fill: "#f59e0b" },
-  { name: "Pembelian", value: 10000000, fill: "#ef4444" },
-];
+interface SummaryResponse {
+  tpa_id: number;
+  nama_tpa: string;
+  summary: {
+    total_anggaran: number;
+    jumlah_item: number;
+    rata_rata_anggaran: number;
+  };
+  recent_anggaran: Anggaran[];
+}
+
+const API_BASE_URL = `http://${import.meta.env.VITE_API_URL}`;
 
 const formatRupiah = (amount: number) => {
   return new Intl.NumberFormat("id-ID", {
@@ -35,7 +44,73 @@ const formatRupiah = (amount: number) => {
 };
 
 const AnggaranPublik = () => {
-  const totalAnggaran = anggaranData.reduce((sum, item) => sum + item.jumlah, 0);
+  const [data, setData] = useState<Anggaran[]>([]);
+  const [summary, setSummary] = useState<SummaryResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [tpaId] = useState(1); // Ganti dengan TPA ID yang sesuai
+
+  // Fetch data anggaran
+  const fetchAnggaran = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE_URL}/tpa/${tpaId}/anggaran`);
+      if (!response.ok) throw new Error("Gagal mengambil data anggaran");
+      const result = await response.json();
+      setData(result.anggaran_list);
+    } catch (error) {
+      console.error("Error fetching anggaran:", error);
+      toast.error("Gagal mengambil data anggaran");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch summary anggaran
+  const fetchSummary = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/tpa/${tpaId}/anggaran/summary`);
+      if (!response.ok) throw new Error("Gagal mengambil summary anggaran");
+      const result: SummaryResponse = await response.json();
+      setSummary(result);
+    } catch (error) {
+      console.error("Error fetching summary:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchAnggaran();
+    fetchSummary();
+  }, [tpaId]);
+
+  // Prepare chart data
+  const chartData = data.reduce((acc: any[], item) => {
+    const existing = acc.find(chartItem => chartItem.name === item.nama_anggaran);
+    if (existing) {
+      existing.value += item.jumlah;
+    } else {
+      acc.push({
+        name: item.nama_anggaran,
+        value: item.jumlah,
+        fill: `#${Math.floor(Math.random()*16777215).toString(16)}` // Random color
+      });
+    }
+    return acc;
+  }, []);
+
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center">
+        <div className="flex items-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="ml-2">Memuat data anggaran...</span>
+        </div>
+      </div>
+    );
+  }
+
+  const totalAnggaran = summary?.summary.total_anggaran || 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
@@ -62,15 +137,52 @@ const AnggaranPublik = () => {
 
       {/* Content */}
       <main className="container mx-auto px-6 py-8 space-y-6">
-        {/* Summary */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Total Anggaran Bulan Ini</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-primary">{formatRupiah(totalAnggaran)}</p>
-          </CardContent>
-        </Card>
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Total Anggaran
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-primary">
+                {formatRupiah(totalAnggaran)}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {summary?.nama_tpa || "TPA"}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Total Entri
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {summary?.summary.jumlah_item || 0} Item
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Data tercatat</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Rata-rata
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatRupiah(summary?.summary.rata_rata_anggaran || 0)}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Per item</p>
+            </CardContent>
+          </Card>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Table */}
@@ -79,56 +191,94 @@ const AnggaranPublik = () => {
               <CardTitle>Rincian Anggaran</CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Tanggal</TableHead>
-                    <TableHead>Tujuan</TableHead>
-                    <TableHead className="text-right">Jumlah</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {anggaranData.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>{item.tanggal}</TableCell>
-                      <TableCell>{item.tujuan}</TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatRupiah(item.jumlah)}
-                      </TableCell>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nama Anggaran</TableHead>
+                      <TableHead className="text-right">Jumlah</TableHead>
+                      <TableHead>Dibuat</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {data.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                          Belum ada data anggaran
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      data.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-medium">{item.nama_anggaran}</TableCell>
+                          <TableCell className="text-right font-bold text-primary">
+                            {formatRupiah(item.jumlah)}
+                          </TableCell>
+                          <TableCell>
+                            {new Date(item.created_at).toLocaleDateString("id-ID", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
 
           {/* Chart */}
           <Card>
             <CardHeader>
-              <CardTitle>Proporsi Anggaran</CardTitle>
+              <CardTitle>Visualisasi Distribusi Anggaran</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={chartData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={80}
-                    dataKey="value"
-                  >
-                    {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
+              {chartData.length === 0 ? (
+                <div className="flex items-center justify-center h-64 text-muted-foreground">
+                  Tidak ada data untuk ditampilkan
+                </div>
+              ) : (
+                <>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={chartData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        outerRadius={90}
+                        dataKey="value"
+                      >
+                        {chartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(value: number) => formatRupiah(value)}
+                      />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="mt-4 space-y-2">
+                    {chartData.map((item, index) => (
+                      <div key={index} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                          />
+                          <span className="text-muted-foreground">{item.name}</span>
+                        </div>
+                        <span className="font-semibold">{formatRupiah(item.value)}</span>
+                      </div>
                     ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value: number) => formatRupiah(value)}
-                  />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -136,9 +286,18 @@ const AnggaranPublik = () => {
         {/* Info */}
         <Card className="bg-blue-50 border-blue-200">
           <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground text-center">
-              Data anggaran ini dipublikasikan untuk transparansi pengelolaan sampah
-            </p>
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground mb-2">
+                Data anggaran ini dipublikasikan untuk transparansi pengelolaan sampah
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Terakhir diperbarui: {new Date().toLocaleDateString("id-ID", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })}
+              </p>
+            </div>
           </CardContent>
         </Card>
       </main>
